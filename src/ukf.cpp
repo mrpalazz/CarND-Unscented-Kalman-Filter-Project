@@ -52,11 +52,30 @@ UKF::UKF() {
   
   /**
   TODO:
-
+  
   Complete the initialization. See ukf.h for other member properties.
 
   Hint: one or more values initialized above might be wildly off...
   */
+  
+  //set the state dimension:
+  int n_x = 5;
+  
+  
+  //set the augmented state dimension:
+  int n_aug = 7;
+  
+ 
+  //Process noise standard deviation (m/s^2):
+  double std_a = 0.2;
+  
+  //Process noise standard deviation yaw acceleration (rad/s^2):
+  double std_yawdd = 0.2;
+  
+  
+  
+  
+  
 }
 
 UKF::~UKF() {}
