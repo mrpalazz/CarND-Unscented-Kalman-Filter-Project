@@ -27,10 +27,10 @@ UKF::UKF() {
   // initial covariance matrix
   P_ = MatrixXd(5, 5);
 
-  // Process noise standard deviation longitudinal acceleration in m/s^2
+  // Process noise standard deviation longitudinal acceleration in m/s^2 (tune these)
   std_a_ = 30;
 
-  // Process noise standard deviation yaw acceleration in rad/s^2
+  // Process noise standard deviation yaw acceleration in rad/s^2 (tune these)
   std_yawdd_ = 30;
   
   //DO NOT MODIFY measurement noise values below these are provided by the sensor manufacturer.
@@ -59,21 +59,65 @@ UKF::UKF() {
   */
   
   //set the state dimension:
-  int n_x = 5;
-  
+  n_x_   = 5;
   
   //set the augmented state dimension:
-  int n_aug = 7;
+  n_aug_ = 7;
   
+  //Time in u_s (initialize to 0);
+  time_us_ = 0;
  
   //Process noise standard deviation (m/s^2):
-  double std_a = 0.2;
+  std_a_ = 0.2;
   
   //Process noise standard deviation yaw acceleration (rad/s^2):
-  double std_yawdd = 0.2;
+  std_yawdd_ = 0.2;
+  
+  //intitialize lambda (the spreading parameter):
+  lambda_ = 3 -n_aug_;
+  
+  //Initiate the (state vector) x matrix (non-augmented): 
+  VectorXd x = VectorXd(n_x_);
+  x <<  0,
+		0,
+		0,
+		0,
+		0;
+  
+  //Initiate the (process co-variance) P matrix
+  MatrixXd p = MatrixXd(n_x_, n_x_);
   
   
+  //create augmented mean vector
+  VectorXd x_aug = VectorXd(7);
+  /*
+  //Create the augmented mean state vector:
+  VectorXd x_aug = VectorXd(n_aug_);
+  x_aug.head(5) = x;
+  x_aug(5) = 0;
+  x_aug(6) = 0;
+  */
+ 
+  //create augmented state covariance
+  MatrixXd P_aug = MatrixXd(7, 7);
+
+  //create sigma point matrix
+  MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
+
   
+  /***Verify if this is the right spot to initialize these or
+  should it be done down in the section:
+  void UKF::ProcessMeasurement(MeasurementPackage meas_package) */
+ 
+  p.fill(0.0);
+  //Check this one later and see if it works
+  p.setIdentity(n_x_,n_x_);
+  
+  //Create the augmented mean state vector:
+  VectorXd x_aug_ = VectorXd(n_aug_);
+  x_aug_.head(5) = x;
+  x_aug_(5) = 0;
+  x_aug_(6) = 0;
   
   
 }
