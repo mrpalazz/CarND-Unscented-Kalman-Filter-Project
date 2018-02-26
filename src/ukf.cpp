@@ -74,32 +74,25 @@ UKF::UKF() {
   std_yawdd_ = 0.2;
   
   //intitialize lambda (the spreading parameter):
-  lambda_ = 3 -n_aug_;
+  lambda_ = 3 - n_aug_;
   
-  //Initiate the (state vector) x matrix (non-augmented): 
-  VectorXd x = VectorXd(n_x_);
-  x <<  0,
-		0,
-		0,
-		0,
-		0;
-  
+
   //Initiate the (process co-variance) P matrix
-  MatrixXd p = MatrixXd(n_x_, n_x_);
+  MatrixXd P_ = MatrixXd(n_x_, n_x_);
   
   
   //create augmented mean vector
-  VectorXd x_aug = VectorXd(7);
+  VectorXd x_aug = VectorXd(n_aug_);
   /*
   //Create the augmented mean state vector:
   VectorXd x_aug = VectorXd(n_aug_);
-  x_aug.head(5) = x;
+  x_aug.head(5) = x_;
   x_aug(5) = 0;
   x_aug(6) = 0;
   */
  
   //create augmented state covariance
-  MatrixXd P_aug = MatrixXd(7, 7);
+  MatrixXd P_aug = MatrixXd(n_aug_, n_aug_);
 
   //create sigma point matrix
   MatrixXd Xsig_aug = MatrixXd(n_aug_, 2 * n_aug_ + 1);
@@ -109,15 +102,11 @@ UKF::UKF() {
   should it be done down in the section:
   void UKF::ProcessMeasurement(MeasurementPackage meas_package) */
  
-  p.fill(0.0);
+  P_.fill(0.0);
   //Check this one later and see if it works
-  p.setIdentity(n_x_,n_x_);
+  P_.setIdentity(n_x_,n_x_);
   
-  //Create the augmented mean state vector:
-  VectorXd x_aug_ = VectorXd(n_aug_);
-  x_aug_.head(5) = x;
-  x_aug_(5) = 0;
-  x_aug_(6) = 0;
+
   
   
 }
@@ -135,7 +124,98 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   Complete this function! Make sure you switch between lidar and radar
   measurements.
   */
+  
+
+    
+/*****************************************************************************
+*  Initialization of Unscented Kalman Filter
+****************************************************************************/
+  if (!is_initialized_) {
+  
+ 
+    /**
+    TODO:
+    * Initialize the state x_ with the first measurement.
+    * Create the covariance matrix.
+    * Remember: you'll need to convert radar from polar to cartesian coordinates.
+    */
+    /**
+
+
+    Initialize state.
+    *///Initialize the values of the state vector x
+    x_ << 0,0,0,0,0;
+
+    //Initialize the co-variance matrix
+    P_ << 0.5, 0.0, 0.0, 0.0, 0.0,
+          0.0, 0.5, 0.0, 0.0, 0.0,
+          0.0, 0.0, 0.5, 0.0, 0.0,
+          0.0, 0.0, 0.0, 0.5, 0.0,
+          0.0, 0.0, 0.0, 0.0, 0.5;
+
+
+    //Initialize timestamp variable
+    time_us_ = meas_package.timestamp_;
+
+
+    //Check if the point is a LIDAR or RADAR measurement
+    if (meas_package.sensor_type_ == MeasurementPackage::LASER && use_laser_) {
+      /**
+       Initialize state.
+      */
+      x_(0) = meas_package.raw_measurements_(0);
+      x_(1) = meas_package.raw_measurements_(1);
+    }
+
+    else if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+      /**
+       Convert radar from polar to cartesian coordinates and initialize state.
+      */
+      float ro     = meas_package.raw_measurements_(0);
+      float phi    = meas_package.raw_measurements_(1);
+      float ro_dot = meas_package.raw_measurements_(2);
+      x_(0) = ro     * cos(phi);
+      x_(1) = ro     * sin(phi);      
+      //x_(2) = ro_dot * cos(phi);
+      //x_(3) = ro_dot * sin(phi);
+    }
+
+
+    // done initializing, no need to predict or update
+    is_initialized_ = true;
+
+    return;
+  
+  }
+
+/*****************************************************************************
+*  Prediction Step of Unscented Kalman Filter
+****************************************************************************/
+
+
+  //compute the time elapsed (delta t) between the current and previous measurement
+  float delta_t = (meas_package.timestamp_ - time_us_) / 1000000.0;	//dt - expressed in seconds
+  time_us_ = meas_package.timestamp_;
+
+  Prediction(delta_t);
+
+
+
+/*****************************************************************************
+*  Update the Lidar or Radar with the measurement package then proceed
+****************************************************************************/
+  if (meas_package.sensor_type_ == MeasurementPackage::LASER){
+  	UpdateLidar(meas_package);
+  }
+
+  else if (meas_package.sensor_type_ == MeasurementPackage::RADAR){
+  	UpdateRadar(meas_package);
+  }
+
+
 }
+
+
 
 /**
  * Predicts sigma points, the state, and the state covariance matrix.
@@ -149,7 +229,50 @@ void UKF::Prediction(double delta_t) {
   Complete this function! Estimate the object's location. Modify the state
   vector, x_. Predict sigma points, the state, and the state covariance matrix.
   */
+  
+/*****************************************************************************
+*  Create the sigma points
+****************************************************************************/
+
+//create sigma point matrix
+MatrixXd Xsig = MatrixXd( n_x_, 2 * n_x_+ 1 );
+
+//calculate the square root of the P matrix
+MatrixXd A = P_.llt().matrixL();
+
+
+//Build up the new state dimension array
+Xsig.col(0) = x_;
+
+for (int i = 0; i < n_x_; i++) 
+{
+	Xsig.col(i+1)      = Xsig.col(0) + sqrt(lambda_ + n_x_)*A.col(i);
+	Xsig.col(i+1+n_x_) = Xsig.col(0) - sqrt(lambda_ + n_x_)*A.col(i);
 }
+  
+  //Initialize the values of the P matrix
+  
+}
+
+/*****************************************************************************
+*  Create the  Augmented sigma points
+****************************************************************************/
+/*
+//populate the augmented mean state
+VectorXd x_aug = VectorXd(7);
+
+x_aug.head(5) = x_;
+x_aug(5) = 0;
+x_aug(6) = 0;
+
+
+//populate the augmented covariance matrix
+MatrixXd P_aug = MatrixXd(n_aug_, n_aug_);
+
+P_aug.fill(0.0);
+
+*/
+
 
 /**
  * Updates the state and the state covariance matrix using a laser measurement.
